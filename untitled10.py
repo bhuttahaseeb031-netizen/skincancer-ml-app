@@ -1,37 +1,33 @@
 import os
 import pickle
-import urllib.request
 import streamlit as st
+import gdown
 
+FILE_ID = "APNI_GOOGLE_DRIVE_FILE_ID_YAHAN_LIKHEIN"
 MODEL_PATH = "model.pkl"
-FILE_ID = "YOUR_ACTUAL_GOOGLE_DRIVE_FILE_ID"  # Replace with your real Google Drive file ID
 
 
-def download_model(file_id: str, dest_path: str) -> None:
-    url = f"https://drive.google.com/uc?export=download&id={file_id}"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+def download_model(file_id: str, model_path: str) -> None:
+    """Google Drive se model file download karta hai agar pehle se mojood na ho."""
+    if os.path.exists(model_path) and os.path.getsize(model_path) > 1024:
+        return
 
-    with urllib.request.urlopen(req) as response:
-        content_type = response.headers.get("Content-Type", "")
-        data = response.read()
+    if os.path.exists(model_path):
+        os.remove(model_path)
 
-    # Google Drive sometimes returns an HTML warning/confirmation page for large files
-    if "text/html" in content_type or data.lstrip().startswith(b"<!DOCTYPE html"):
+    url = f"https://drive.google.com/uc?id={file_id}"
+    downloaded = gdown.download(url=url, output=model_path, quiet=True, fuzzy=True)
+
+    if not downloaded or not os.path.exists(model_path) or os.path.getsize(model_path) < 1024:
         raise RuntimeError(
-            "Google Drive returned an HTML page instead of the model file. "
-            "Check that link sharing is set to 'Anyone with the link', or host the file "
-            "on Hugging Face / GitHub Releases for reliable direct downloads."
+            "Model file Google Drive se download nahi ho saki. "
+            "Check karein ke FILE_ID sahi hai aur file ki sharing 'Anyone with the link' par set hai."
         )
 
-    with open(dest_path, "wb") as f:
-        f.write(data)
 
-
-@st.cache_resource
+@st.cache_resource(show_spinner="Model load ho raha hai...")
 def load_model():
-    if not os.path.exists(MODEL_PATH):
-        download_model(FILE_ID, MODEL_PATH)
-
+    download_model(FILE_ID, MODEL_PATH)
     with open(MODEL_PATH, "rb") as f:
         return pickle.load(f)
 
